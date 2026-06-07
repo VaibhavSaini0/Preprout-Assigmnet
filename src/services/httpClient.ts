@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.DEV
-  ? '/api'
-  : 'https://admin-moderator-backend-staging.up.railway.app/api';
+// Use relative /api in all environments — Vite proxies locally, Vercel rewrites in production
+const BASE_URL = '/api';
 
 export const api = axios.create({
   baseURL: BASE_URL,
