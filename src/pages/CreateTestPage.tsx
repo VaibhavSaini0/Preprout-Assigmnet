@@ -260,16 +260,19 @@ export default function CreateTestPage() {
 
   if (isEditing) {
     return (
-      <Modal
-        open
-        onClose={goBack}
-        title="Edit Test creation"
-        size="xl"
-      >
-        {apiError && <Alert variant="error" className="mb-lg">{apiError}</Alert>}
-        <TestCreationForm {...formProps} />
-        {footerActions}
-      </Modal>
+      <AppLayout>
+        <Breadcrumbs
+          items={[
+            { label: 'Test Tracking', to: '/tracking' },
+            { label: 'Edit Test' },
+          ]}
+        />
+        <Modal open onClose={goBack} title="Edit Test" size="xl">
+          {apiError && <Alert variant="error" className="mb-lg">{apiError}</Alert>}
+          <TestCreationForm {...formProps} />
+          {footerActions}
+        </Modal>
+      </AppLayout>
     );
   }
 

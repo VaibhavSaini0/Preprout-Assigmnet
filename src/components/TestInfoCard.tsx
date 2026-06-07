@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTestContext } from '../context/TestContext';
 import { apiService } from '../services/api';
 import { IconEdit, IconTimer, IconQuestions, IconMarks } from './icons/Icons';
@@ -11,6 +11,7 @@ interface TestInfoCardProps {
 
 export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentTest, subjects } = useTestContext();
   const [topicNames, setTopicNames] = useState<string[]>([]);
   const [subTopicNames, setSubTopicNames] = useState<string[]>([]);
@@ -58,7 +59,7 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
 
   const handleEditClick = () => {
     if (onEdit) onEdit();
-    else navigate(`/edit-test/${currentTest.id}`);
+    else navigate(`/edit-test/${currentTest.id}`, { state: { from: location.pathname } });
   };
 
   const subjectName =

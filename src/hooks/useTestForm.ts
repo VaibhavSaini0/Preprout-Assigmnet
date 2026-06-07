@@ -59,7 +59,7 @@ export function useTestForm() {
       navigate(-1);
     }
   };
-  const { subjects, fetchSubjects, setCurrentTest } = useTestContext();
+  const { subjects, fetchSubjects, setCurrentTest, currentTest } = useTestContext();
   const isInitialLoadRef = useRef(isEditing);
 
   const [testName, setTestName] = useState('');
@@ -118,8 +118,41 @@ export function useTestForm() {
           setCorrectAnswer(test.correct_marks);
           setTotalQuestions(test.total_questions);
           setDuration(test.total_time);
-          setSelectedTopics(test.topics || []);
-          setSelectedSubTopics(test.sub_topics || []);
+
+          // GET /tests/:id may return topic/sub_topic names — resolve to UUIDs for the form
+          const allTopics = await apiService.getTopics(resolvedSubjectId);
+          setTopicsOptions(allTopics);
+          const resolvedTopicIds = (test.topics || [])
+            .map((value) => {
+              const byId = allTopics.find((t) => t.id === value);
+              if (byId) return byId.id;
+              const byName = allTopics.find(
+                (t) => t.name.toLowerCase() === String(value).toLowerCase()
+              );
+              return byName?.id;
+            })
+            .filter((id): id is string => Boolean(id));
+          setSelectedTopics(resolvedTopicIds);
+
+          if (resolvedTopicIds.length > 0) {
+            const allSubTopics = await apiService.getSubTopicsMulti(resolvedTopicIds);
+            setSubTopicsOptions(allSubTopics);
+            const resolvedSubTopicIds = (test.sub_topics || [])
+              .map((value) => {
+                const byId = allSubTopics.find((st) => st.id === value);
+                if (byId) return byId.id;
+                const byName = allSubTopics.find(
+                  (st) => st.name.toLowerCase() === String(value).toLowerCase()
+                );
+                return byName?.id;
+              })
+              .filter((id): id is string => Boolean(id));
+            setSelectedSubTopics(resolvedSubTopicIds);
+          } else {
+            setSubTopicsOptions([]);
+            setSelectedSubTopics([]);
+          }
+
           setTimeout(() => {
             isInitialLoadRef.current = false;
           }, 100);
@@ -172,6 +205,7 @@ export function useTestForm() {
   }, [selectedTopics]);
 
   useEffect(() => {
+    if (isInitialLoadRef.current) return;
     setSelectedSubTopics((prev) =>
       prev.filter((stId) => subTopicsOptions.some((opt) => opt.id === stId))
     );
@@ -194,21 +228,28 @@ export function useTestForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const getPayload = (status: 'draft' | 'live'): Partial<Test> => ({
-    name: testName.trim(),
-    type: toApiTestType(testType),
-    subject: selectedSubject,
-    topics: selectedTopics,
-    sub_topics: selectedSubTopics,
-    correct_marks: correctAnswer,
-    wrong_marks: wrongAnswer,
-    unattempt_marks: unattempted,
-    difficulty: toApiDifficulty(difficulty),
-    total_time: duration,
-    total_marks: calculatedTotalMarks,
-    total_questions: totalQuestions,
-    status,
-  });
+  const getPayload = (): Partial<Test> => {
+    const payload: Partial<Test> = {
+      name: testName.trim(),
+      type: toApiTestType(testType),
+      subject: selectedSubject,
+      topics: selectedTopics,
+      sub_topics: selectedSubTopics,
+      correct_marks: correctAnswer,
+      wrong_marks: wrongAnswer,
+      unattempt_marks: unattempted,
+      difficulty: toApiDifficulty(difficulty),
+      total_time: duration,
+      total_marks: calculatedTotalMarks,
+      total_questions: totalQuestions,
+    };
+    if (isEditing && currentTest?.status) {
+      payload.status = currentTest.status;
+    } else if (!isEditing) {
+      payload.status = 'draft';
+    }
+    return payload;
+  };
 
   const handleSaveAsDraft = async () => {
     if (!validateForm()) return;
@@ -216,12 +257,12 @@ export function useTestForm() {
     setApiError(null);
     try {
       if (isEditing && id) {
-        const payload = getPayload('draft');
+        const payload = getPayload();
         console.log('[useTestForm] updateTest payload:', payload);
         await apiService.updateTest(id, payload);
         goBack();
       } else {
-        const payload = getPayload('draft');
+        const payload = getPayload();
         console.log('[useTestForm] createTest payload:', payload);
         await apiService.createTest(payload);
         navigate('/dashboard');
@@ -243,11 +284,11 @@ export function useTestForm() {
     try {
       let savedTest: Test;
       if (isEditing && id) {
-        const payload = getPayload('draft');
+        const payload = getPayload();
         console.log('[useTestForm] updateTest payload:', payload);
         savedTest = await apiService.updateTest(id, payload);
       } else {
-        const payload = getPayload('draft');
+        const payload = getPayload();
         console.log('[useTestForm] createTest payload:', payload);
         savedTest = await apiService.createTest(payload);
       }
