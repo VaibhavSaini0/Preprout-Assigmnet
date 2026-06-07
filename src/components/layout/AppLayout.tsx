@@ -10,11 +10,13 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, showQuestionPanel, questionPanel }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-bg-page">
-      <Sidebar showQuestionPanel={showQuestionPanel} questionPanel={questionPanel} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopNav />
-        <main className="flex-1 p-lg md:p-xl md:px-2xl md:pb-3xl overflow-y-auto">{children}</main>
+    <div className="flex h-screen flex-col overflow-hidden bg-bg-page">
+      <TopNav />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar showQuestionPanel={showQuestionPanel} questionPanel={questionPanel} />
+        <main className="flex-1 min-h-0 overflow-y-auto md:p-xl md:px-2xl md:pb-xl">
+          <div className="max-w-content-max mx-auto w-full">{children}</div>
+        </main>
       </div>
     </div>
   );

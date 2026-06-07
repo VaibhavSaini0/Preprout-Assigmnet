@@ -1,0 +1,4 @@
+question,option1,option2,option3,option4,correct_option,explanation,difficulty,media_url
+"What is the capital of France?","London","Berlin","Paris","Madrid","option3","Paris is the capital of France.","easy",""
+"Which planet is known as the Red Planet?","Earth","Mars","Jupiter","Saturn","option2","Mars has a reddish appearance due to iron oxide.","easy",""
+"What is the value of Pi (to 2 decimal places)?","3.12","3.16","3.14","3.20","option3","Pi is approximately 3.14159...","medium",""

@@ -1,394 +1,213 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRef, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
+import Spinner from '../components/ui/Spinner';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import TestInfoCard from '../components/TestInfoCard';
 import QuestionPanel from '../components/QuestionPanel';
-import { SelectField, TextAreaField } from '../components/ui/FormField';
-import { useTestContext } from '../context/TestContext';
-import { apiService } from '../services/api';
-import type { Topic, SubTopic, Question } from '../services/api';
+import { SelectField, TextAreaField, InputField } from '../components/ui/FormField';
+import { useQuestionEditor } from '../hooks/useQuestionEditor';
 import {
   IconTrash,
-  IconDownload,
   IconChevronLeft,
   IconChevronRight,
   IconCheck,
 } from '../components/icons/Icons';
 
-export default function TestViewPage() {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+const EDITOR_TOOLS = [
+  { label: 'B', title: 'Bold (coming soon)' },
+  { label: 'I', title: 'Italic (coming soon)' },
+  { label: 'U', title: 'Underline (coming soon)' },
+  { label: '≡', title: 'Align (coming soon)' },
+  { label: '•', title: 'List (coming soon)' },
+];
 
+export default function TestViewPage() {
   const {
+    navigate,
     currentTest,
     currentQuestions,
-    setCurrentQuestions,
-    loadTestAndQuestions,
-    saveCurrentQuestionsToDB,
-    loading
-  } = useTestContext();
+    loading,
+    activeIndex,
+    questionText,
+    setQuestionText,
+    option1,
+    setOption1,
+    option2,
+    setOption2,
+    option3,
+    setOption3,
+    option4,
+    setOption4,
+    correctOption,
+    setCorrectOption,
+    explanation,
+    setExplanation,
+    qDifficulty,
+    setQDifficulty,
+    qTopicId,
+    setQTopicId,
+    qSubTopicId,
+    setQSubTopicId,
+    mediaUrl,
+    setMediaUrl,
+    testTopics,
+    testSubTopics,
+    pageError,
+    pageLoading,
+    deleteConfirm,
+    setDeleteConfirm,
+    handleSelectQuestion,
+    handleAddNewQuestion,
+    confirmDeleteQuestion,
+    executeDeleteQuestion,
+    handleClearForm,
+    handleDeleteAllEdits,
+    executeReset,
+    handleSaveAndContinue,
+    handleCSVUpload,
+    handleFormatText,
+  } = useQuestionEditor();
 
-  // Active question index
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
-  // Editor form state
-  const [questionText, setQuestionText] = useState('');
-  const [option1, setOption1] = useState('');
-  const [option2, setOption2] = useState('');
-  const [option3, setOption3] = useState('');
-  const [option4, setOption4] = useState('');
-  const [correctOption, setCorrectOption] = useState('option1');
-  const [explanation, setExplanation] = useState('');
-  const [qDifficulty, setQDifficulty] = useState('medium');
-  const [qTopicId, setQTopicId] = useState('');
-  const [qSubTopicId, setQSubTopicId] = useState('');
-  const [mediaUrl, setMediaUrl] = useState('');
-
-  // Dropdown lists from backend
-  const [testTopics, setTestTopics] = useState<Topic[]>([]);
-  const [testSubTopics, setTestSubTopics] = useState<SubTopic[]>([]);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
-
-  // 1. Fetch test details and questions on mount
+  // Sync contentEditable innerHTML with questionText state natively
   useEffect(() => {
-    if (id) {
-      loadTestAndQuestions(id);
+    if (editorRef.current && editorRef.current.innerHTML !== questionText) {
+      editorRef.current.innerHTML = questionText;
     }
-  }, [id]);
+  }, [questionText, activeIndex]);
 
-  // 2. Fetch all topic and subtopic metadata for dropdowns based on test configuration
-  useEffect(() => {
-    if (currentTest) {
-      const loadMetadata = async () => {
-        try {
-          // Fetch topics for subject
-          const allTopics = await apiService.getTopics(currentTest.subject);
-          const filteredTopics = allTopics.filter(t => currentTest.topics.includes(t.id));
-          setTestTopics(filteredTopics);
-
-          // Fetch sub-topics for topics
-          if (currentTest.topics.length > 0) {
-            const allSubTopics = await apiService.getSubTopicsMulti(currentTest.topics);
-            const filteredSub = allSubTopics.filter(st => currentTest.sub_topics?.includes(st.id));
-            setTestSubTopics(filteredSub);
-          }
-        } catch (err) {
-          console.error('Failed to load topic metadata', err);
-        }
-      };
-      loadMetadata();
-    }
-  }, [currentTest]);
-
-  // 3. Set default active index when questions load
-  useEffect(() => {
-    if (currentQuestions.length > 0 && activeIndex === null) {
-      setActiveIndex(0);
-      loadQuestionIntoForm(0, currentQuestions);
-    } else if (currentQuestions.length === 0 && activeIndex === null && currentTest) {
-      // Start with a default empty question
-      handleAddNewQuestion();
-    }
-  }, [currentQuestions, currentTest]);
-
-  // Load a question's data into the form states
-  const loadQuestionIntoForm = (index: number, list: Question[]) => {
-    const q = list[index];
-    if (!q) return;
-
-    setQuestionText(q.question || '');
-    setOption1(q.option1 || '');
-    setOption2(q.option2 || '');
-    setOption3(q.option3 || '');
-    setOption4(q.option4 || '');
-    setCorrectOption(q.correct_option || 'option1');
-    setExplanation(q.explanation || '');
-    setQDifficulty(q.difficulty || 'medium');
-    setQTopicId(q.topic_id || '');
-    setQSubTopicId(q.sub_topic_id || '');
-    setMediaUrl(q.media_url || '');
-  };
-
-  // Syncs the active form fields back into the local questions state
-  const syncFormToQuestions = (index: number | null, list: Question[]): Question[] => {
-    if (index === null || index < 0 || index >= list.length) return list;
-    const nextList = [...list];
-    nextList[index] = {
-      ...nextList[index],
-      type: 'mcq',
-      question: questionText,
-      option1,
-      option2,
-      option3,
-      option4,
-      correct_option: correctOption,
-      explanation,
-      difficulty: qDifficulty,
-      topic_id: qTopicId || undefined,
-      sub_topic_id: qSubTopicId || undefined,
-      media_url: mediaUrl || undefined,
-      test_id: id || '',
-    };
-    return nextList;
-  };
-
-  // Switch questions
-  const handleSelectQuestion = (index: number) => {
-    if (activeIndex === index) return;
-    setPageError(null);
-    setSaveSuccess(null);
-
-    // Save previous active question
-    const updatedList = syncFormToQuestions(activeIndex, currentQuestions);
-    setCurrentQuestions(updatedList);
-
-    // Switch index
-    setActiveIndex(index);
-    loadQuestionIntoForm(index, updatedList);
-  };
-
-  // Create new question
-  const handleAddNewQuestion = () => {
-    setPageError(null);
-    setSaveSuccess(null);
-
-    let list = currentQuestions;
-    if (activeIndex !== null) {
-      list = syncFormToQuestions(activeIndex, currentQuestions);
-    }
-
-    const newQ: Question = {
-      type: 'mcq',
-      question: '',
-      option1: '',
-      option2: '',
-      option3: '',
-      option4: '',
-      correct_option: 'option1',
-      difficulty: 'medium',
-      test_id: id || '',
-    };
-
-    const nextList = [...list, newQ];
-    setCurrentQuestions(nextList);
-    const newIdx = nextList.length - 1;
-
-    // Load new empty form
-    setActiveIndex(newIdx);
-    setQuestionText('');
-    setOption1('');
-    setOption2('');
-    setOption3('');
-    setOption4('');
-    setCorrectOption('option1');
-    setExplanation('');
-    setQDifficulty('medium');
-    setQTopicId('');
-    setQSubTopicId('');
-    setMediaUrl('');
-  };
-
-  // Delete a question
-  const handleDeleteQuestion = (index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPageError(null);
-    setSaveSuccess(null);
-
-    if (currentQuestions.length <= 1) {
-      setPageError('A test requires at least 1 question. You cannot delete this question.');
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to delete Question ${index + 1}?`)) return;
-
-    // Filter out the question
-    const updatedList = currentQuestions.filter((_, idx) => idx !== index);
-    
-    // Shift active index
-    let nextActiveIndex = activeIndex;
-    if (activeIndex === index) {
-      nextActiveIndex = index > 0 ? index - 1 : 0;
-    } else if (activeIndex !== null && activeIndex > index) {
-      nextActiveIndex = activeIndex - 1;
-    }
-
-    setCurrentQuestions(updatedList);
-    setActiveIndex(nextActiveIndex);
-    
-    if (nextActiveIndex !== null) {
-      loadQuestionIntoForm(nextActiveIndex, updatedList);
-    }
-  };
-
-  // Clear active question form
-  const handleClearForm = () => {
-    setQuestionText('');
-    setOption1('');
-    setOption2('');
-    setOption3('');
-    setOption4('');
-    setCorrectOption('option1');
-    setExplanation('');
-    setQDifficulty('medium');
-    setQTopicId('');
-    setQSubTopicId('');
-    setMediaUrl('');
-  };
-
-  // Clear all question edits
-  const handleDeleteAllEdits = () => {
-    if (window.confirm('Are you sure you want to reset all edits? This clears all question contents.')) {
-      handleClearForm();
-      if (activeIndex !== null) {
-        const nextList = [...currentQuestions];
-        nextList[activeIndex] = {
-          type: 'mcq',
-          question: '',
-          option1: '',
-          option2: '',
-          option3: '',
-          option4: '',
-          correct_option: 'option1',
-          difficulty: 'medium',
-          test_id: id || '',
-        };
-        setCurrentQuestions(nextList);
-      }
-    }
-  };
-
-  // Next / Save & Continue action
-  const handleSaveAndContinue = async () => {
-    setPageError(null);
-    setSaveSuccess(null);
-
-    // 1. Sync current form state to questions
-    const finalQuestionsList = syncFormToQuestions(activeIndex, currentQuestions);
-    setCurrentQuestions(finalQuestionsList);
-
-    // 2. Validate list
-    if (finalQuestionsList.length === 0) {
-      setPageError('A test must contain at least 1 question.');
-      return;
-    }
-
-    // Check if any question has blank fields
-    for (let i = 0; i < finalQuestionsList.length; i++) {
-      const q = finalQuestionsList[i];
-      if (!q.question?.trim() || !q.option1?.trim() || !q.option2?.trim() || !q.option3?.trim() || !q.option4?.trim()) {
-        setActiveIndex(i);
-        loadQuestionIntoForm(i, finalQuestionsList);
-        setPageError(`Question ${i + 1} is incomplete. Please provide question text, all 4 options, and the correct option.`);
-        return;
-      }
-    }
-
-    // 3. Save to backend via context
-    try {
-      await saveCurrentQuestionsToDB();
-      setSaveSuccess('Questions saved successfully!');
-      // Navigate to Page 5: Preview & Publish
-      navigate(`/confirmation/${id}`);
-    } catch (err: any) {
-      console.error(err);
-      setPageError(err.response?.data?.message || err.message || 'Failed to save questions to backend.');
-    }
-  };
+  if (pageLoading) {
+    return (
+      <AppLayout>
+        <Spinner label="Loading test..." className="py-32" />
+      </AppLayout>
+    );
+  }
 
   return (
-    <AppLayout 
-      showQuestionPanel 
+    <AppLayout
+      showQuestionPanel
       questionPanel={
-        <QuestionPanel 
+        <QuestionPanel
           questions={currentQuestions}
           activeIndex={activeIndex}
           onSelect={handleSelectQuestion}
-          onDelete={handleDeleteQuestion}
+          onDelete={(idx, e) => { e.stopPropagation(); confirmDeleteQuestion(idx); }}
           onAddNew={handleAddNewQuestion}
           totalQuestionsExpected={currentTest?.total_questions || 50}
         />
       }
     >
-      <div className="mb-xl">
+      <div className="flex flex-wrap items-center justify-between gap-lg mb-xl">
         <Breadcrumbs
           items={[
             { label: 'Test Creation', to: '/create-test' },
             { label: 'Create Test', to: '/create-test' },
-            { label: currentTest?.name || 'Chapter Wise' },
+            { label: currentTest?.name || 'Questions' },
           ]}
         />
+        <Button onClick={handleSaveAndContinue} disabled={loading}>
+          {loading ? 'Saving...' : 'Next: Preview & Publish'}
+        </Button>
       </div>
 
       <TestInfoCard />
 
-      {pageError && (
-        <Alert variant="error" className="mt-lg">{pageError}</Alert>
-      )}
+      {pageError && <Alert variant="error" className="mt-lg">{pageError}</Alert>}
 
-      {saveSuccess && (
-        <Alert variant="success" className="mt-lg">{saveSuccess}</Alert>
-      )}
-
-      <section className="bg-bg-card border border-border rounded-lg p-2xl mt-xl">
-        <div className="flex items-center justify-between flex-wrap gap-md mb-md">
+      <section className="bg-bg-card border border-border rounded-lg p-2xl mt-xl shadow-card">
+        <div className="flex items-center justify-between flex-wrap gap-md mb-lg">
           <h2 className="text-lg font-semibold text-primary">
             Question {(activeIndex !== null ? activeIndex + 1 : 0)} / {currentQuestions.length}
           </h2>
-          <div className="flex gap-sm">
-            <button 
-              type="button" 
-              className="flex items-center gap-xs p-sm px-lg border border-border rounded-md text-sm font-medium text-text-main bg-bg-card hover:bg-bg-tab-active transition duration-150"
+          <div className="flex gap-sm items-center">
+            <button
+              type="button"
+              className="flex items-center gap-xs px-lg py-sm border border-primary/30 rounded-md text-sm font-medium text-primary-dark bg-primary-light hover:bg-primary/20 transition duration-150"
               onClick={handleAddNewQuestion}
             >
               + MCQ
             </button>
             <button
               type="button"
-              className="flex items-center gap-xs p-sm px-lg border border-border rounded-md text-sm font-medium text-text-main bg-bg-card hover:bg-bg-tab-active transition duration-150"
-              disabled
+              className="flex items-center gap-xs px-lg py-sm border border-border rounded-md text-sm font-medium text-text-main hover:bg-bg-page transition duration-150"
+              onClick={() => document.getElementById('csv-file-input')?.click()}
+              title="Upload questions from a CSV file"
             >
-              <IconDownload /> CSV
+              📤 Upload CSV
             </button>
+            <input
+              id="csv-file-input"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const text = event.target?.result as string;
+                  if (text) handleCSVUpload(text);
+                };
+                reader.readAsText(file);
+                e.target.value = ''; // Reset input to allow uploading same file
+              }}
+            />
           </div>
         </div>
 
-        <button 
-          type="button" 
-          className="flex items-center gap-xs text-sm text-danger mb-lg hover:underline cursor-pointer"
+        <button
+          type="button"
+          className="flex items-center gap-xs text-sm text-danger mb-lg hover:underline"
           onClick={handleDeleteAllEdits}
         >
-          <IconTrash /> Reset Question Edits
+          <IconTrash width={14} height={14} /> Reset Question Edits
         </button>
 
-        <div className="flex flex-wrap gap-xs p-sm border border-border border-b-0 rounded-t-md bg-bg-sidebar-icon">
-          {['B', 'I', 'U', 'S', '🔗', '≡', '•', '🖼', 'Complex Formula'].map((tool) => (
+        <div className="flex flex-wrap gap-xs p-sm border border-border border-b-0 rounded-t-md bg-bg-page">
+          {[
+            { label: 'B', title: 'Bold', cmd: 'bold' },
+            { label: 'I', title: 'Italic', cmd: 'italic' },
+            { label: 'U', title: 'Underline', cmd: 'underline' },
+          ].map(({ label, title, cmd }) => (
             <button
-              key={tool}
+              key={label}
               type="button"
-              className="w-8 h-8 flex items-center justify-center rounded-sm text-sm font-semibold text-text-main hover:bg-border"
-              disabled
+              className="w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold text-text-main hover:bg-bg-tab-active hover:text-primary-dark transition duration-150"
+              onClick={() => handleFormatText(cmd)}
+              title={title}
             >
-              {tool}
+              {label}
+            </button>
+          ))}
+          {EDITOR_TOOLS.slice(3).map(({ label, title }) => (
+            <button
+              key={label}
+              type="button"
+              className="w-8 h-8 flex items-center justify-center rounded-sm text-sm font-semibold text-text-subtle cursor-not-allowed opacity-50"
+              disabled
+              title={title}
+            >
+              {label}
             </button>
           ))}
         </div>
 
         <div className="relative mb-xl">
-          <textarea 
-            placeholder="Type your question here..." 
-            className="w-full min-h-[140px] p-lg pr-[48px] border border-border rounded-b-md resize-y outline-none text-base focus:border-primary" 
-            rows={5}
-            value={questionText}
-            onChange={(e) => setQuestionText(e.target.value)}
-            disabled={loading}
+          <div
+            ref={editorRef}
+            contentEditable
+            onInput={(e) => setQuestionText(e.currentTarget.innerHTML)}
+            onBlur={(e) => setQuestionText(e.currentTarget.innerHTML)}
+            className="w-full min-h-[140px] max-h-[280px] p-lg pr-[48px] border border-border rounded-b-md outline-none text-base focus:border-primary focus:shadow-[0_0_0_3px_rgba(89,136,239,0.12)] transition-shadow bg-bg-card overflow-y-auto"
           />
-          <button 
-            type="button" 
-            className="absolute bottom-md right-md text-text-subtle p-xs hover:text-danger transition-colors" 
+          <button
+            type="button"
+            className="absolute bottom-md right-md text-text-subtle p-xs hover:text-danger transition-colors z-10"
             onClick={handleClearForm}
             aria-label="Clear form"
           >
@@ -396,128 +215,137 @@ export default function TestViewPage() {
           </button>
         </div>
 
-        <p className="text-sm font-medium text-text-main mb-md">Type options below & select the checkmark for correct answer</p>
+        <InputField
+          label="Media URL (optional)"
+          placeholder="https://example.com/image.png"
+          value={mediaUrl}
+          onChange={(e) => setMediaUrl(e.target.value)}
+          disabled={loading}
+          className="mb-xl"
+        />
+
+        <p className="text-sm font-medium text-text-main mb-md">Type options below & select the correct answer</p>
         <div className="flex flex-col gap-md mb-xl">
           {[
-            { id: 'option1', val: option1, setVal: setOption1 },
-            { id: 'option2', val: option2, setVal: setOption2 },
-            { id: 'option3', val: option3, setVal: setOption3 },
-            { id: 'option4', val: option4, setVal: setOption4 }
-          ].map(({ id: optId, val, setVal }) => {
+            { id: 'option1', val: option1, setVal: setOption1, letter: 'A' },
+            { id: 'option2', val: option2, setVal: setOption2, letter: 'B' },
+            { id: 'option3', val: option3, setVal: setOption3, letter: 'C' },
+            { id: 'option4', val: option4, setVal: setOption4, letter: 'D' },
+          ].map(({ id: optId, val, setVal, letter }) => {
             const isCorrect = correctOption === optId;
             return (
-              <div 
-                key={optId} 
-                className="flex items-center gap-md"
-              >
+              <div key={optId} className="flex items-center gap-md">
                 <button
                   type="button"
-                  className={`w-6 h-6 border-2 border-border-input rounded-full shrink-0 flex items-center justify-center bg-transparent cursor-pointer transition-all duration-150 hover:border-primary ${
-                    isCorrect ? 'bg-success border-success' : ''
+                  className={`w-7 h-7 border-2 rounded-full shrink-0 flex items-center justify-center transition-all duration-150 ${
+                    isCorrect ? 'bg-success border-success text-white' : 'border-border-input hover:border-primary'
                   }`}
                   onClick={() => setCorrectOption(optId)}
                   title="Mark as correct answer"
                 >
-                  {isCorrect ? <IconCheck style={{ width: 12, height: 12, color: 'white' }} /> : <span />}
+                  {isCorrect ? <IconCheck width={12} height={12} /> : <span className="text-xs font-semibold text-text-subtle">{letter}</span>}
                 </button>
                 <input
                   type="text"
-                  placeholder={`Type Option (${optId.replace('option', '')})`}
+                  placeholder={`Option ${letter}`}
                   value={val}
                   onChange={(e) => setVal(e.target.value)}
                   disabled={loading}
                   className={`flex-1 h-input px-lg border rounded-md outline-none focus:border-primary transition-all ${
-                    isCorrect ? 'border-success shadow-[0_0_0_1px_rgba(16,185,129,0.15)]' : 'border-border-input'
+                    isCorrect ? 'border-success bg-success-bg/30' : 'border-border-input'
                   }`}
                 />
-                <button 
-                  type="button" 
-                  className="text-text-subtle p-sm hover:text-danger transition-colors"
-                  onClick={() => setVal('')}
-                  title="Clear option"
-                >
-                  <IconTrash />
+                <button type="button" className="text-text-subtle p-sm hover:text-danger transition-colors" onClick={() => setVal('')}>
+                  <IconTrash width={14} height={14} />
                 </button>
               </div>
             );
           })}
         </div>
 
-        <TextAreaField 
-          label="Add Solution / Explanation" 
-          placeholder="Explain the solution detail here..." 
+        <TextAreaField
+          label="Add Solution / Explanation"
+          placeholder="Explain the solution here..."
           rows={3}
           value={explanation}
           onChange={setExplanation}
         />
 
         <div className="flex justify-center gap-md mt-xl">
-          <button 
-            type="button" 
-            aria-label="Previous question"
+          <button
+            type="button"
             disabled={activeIndex === null || activeIndex === 0}
             onClick={() => activeIndex !== null && handleSelectQuestion(activeIndex - 1)}
-            className="h-9 flex items-center justify-center gap-xs px-lg border border-border rounded-md text-text-subtle text-xs font-medium transition-colors duration-150 hover:enabled:bg-bg-tab-active hover:enabled:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 flex items-center gap-xs px-lg border border-border rounded-md text-text-subtle text-xs font-medium hover:enabled:bg-bg-tab-active hover:enabled:text-primary disabled:opacity-40 transition-colors"
           >
-            <IconChevronLeft /> Previous Question
+            <IconChevronLeft /> Previous
           </button>
-          <button 
-            type="button" 
-            aria-label="Next question"
+          <button
+            type="button"
             disabled={activeIndex === null || activeIndex === currentQuestions.length - 1}
             onClick={() => activeIndex !== null && handleSelectQuestion(activeIndex + 1)}
-            className="h-9 flex items-center justify-center gap-xs px-lg border border-border rounded-md text-text-subtle text-xs font-medium transition-colors duration-150 hover:enabled:bg-bg-tab-active hover:enabled:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 flex items-center gap-xs px-lg border border-border rounded-md text-text-subtle text-xs font-medium hover:enabled:bg-bg-tab-active hover:enabled:text-primary disabled:opacity-40 transition-colors"
           >
-            Next Question <IconChevronRight />
+            Next <IconChevronRight />
           </button>
         </div>
       </section>
 
-      <section className="bg-bg-card border border-border rounded-lg p-2xl mt-xl">
+      <section className="bg-bg-card border border-border rounded-lg p-2xl mt-xl shadow-card">
         <h3 className="text-base font-semibold text-text-heading mb-lg">Question settings</h3>
         <div className="grid grid-cols-3 gap-xl max-lg:grid-cols-1">
-          <SelectField 
-            label="Level of Difficulty" 
+          <SelectField
+            label="Level of Difficulty"
             value={qDifficulty}
             onChange={setQDifficulty}
             options={[
               { value: 'easy', label: 'Easy' },
               { value: 'medium', label: 'Medium' },
-              { value: 'difficult', label: 'Difficult' }
+              { value: 'hard', label: 'Difficult' },
             ]}
           />
-          <SelectField 
-            label="Topic" 
+          <SelectField
+            label="Topic"
             value={qTopicId}
             onChange={setQTopicId}
-            options={testTopics.map(t => ({ value: t.id, label: t.name }))}
+            options={testTopics.map((t) => ({ value: t.id, label: t.name }))}
             placeholder="Select Topic"
           />
-          <SelectField 
-            label="Sub-topic" 
+          <SelectField
+            label="Sub-topic"
             value={qSubTopicId}
             onChange={setQSubTopicId}
-            options={testSubTopics.map(st => ({ value: st.id, label: st.name }))}
+            options={testSubTopics.map((st) => ({ value: st.id, label: st.name }))}
             placeholder="Select Sub-topic"
           />
         </div>
       </section>
 
-      <div className="flex justify-between items-center mt-2xl gap-md max-sm:flex-col [&_button]:max-sm:w-full">
-        <Button 
-          variant="danger" 
-          onClick={() => navigate('/dashboard')}
-          disabled={loading}
-        >
+      <div className="flex justify-between items-center mt-xl mb-0 gap-md max-sm:flex-col [&_button]:max-sm:w-full">
+        <Button variant="danger" onClick={() => navigate('/dashboard')} disabled={loading}>
           Exit Test Creation
         </Button>
-        <Button 
-          onClick={handleSaveAndContinue}
-          disabled={loading}
-        >
+        <Button onClick={handleSaveAndContinue} disabled={loading}>
           {loading ? 'Saving...' : 'Next: Preview & Publish'}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirm?.type === 'question'}
+        title="Delete Question"
+        message={`Are you sure you want to delete Question ${(deleteConfirm?.index ?? 0) + 1}?`}
+        confirmLabel="Delete"
+        onConfirm={executeDeleteQuestion}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+      <ConfirmDialog
+        open={deleteConfirm?.type === 'reset'}
+        title="Reset Question"
+        message="This will clear all content for the current question. Continue?"
+        confirmLabel="Reset"
+        onConfirm={executeReset}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </AppLayout>
   );
 }

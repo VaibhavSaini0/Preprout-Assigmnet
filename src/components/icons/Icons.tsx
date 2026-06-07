@@ -1,13 +1,24 @@
-import type { SVGProps, ImgHTMLAttributes } from 'react';
+import type { SVGProps } from 'react';
 
-export function Logo({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+export function Logo({ className }: { className?: string }) {
   return (
+      
     <img
-      src="/Login/image.png"
+      src="/logo.png"
       alt="PrepRoute"
       className={className}
-      style={{ height: '32px', width: 'auto', display: 'block', ...props.style }}
-      {...props}
+      style={{ height: '28px', width: 'auto', objectFit: 'contain' }}
+      />
+  );
+}
+
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <img
+      src="/logo.png"
+      alt="PrepRoute"
+      className={className}
+      style={{ width: '36px', height: '36px', objectFit: 'contain' }}
     />
   );
 }
@@ -219,6 +230,41 @@ export function IconHelp(props: SVGProps<SVGSVGElement>) {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconCreditCard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconShield(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconBook(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" strokeLinecap="round" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconLayers(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M12 2L2 7l10 5 10-5-10-5z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -1,0 +1,6 @@
+question_text,option_a,option_b,option_c,option_d,correct_option,explanation,difficulty,subject,topic,sub_topic
+"What is the derivative of sin(x)?","cos(x)","-cos(x)","sin(x)","-sin(x)","A","The derivative of sin(x) is cos(x) by standard differentiation rules.","Easy","Mathematics","Calculus","Differentiation"
+"Which organelle is known as the powerhouse of the cell?","Nucleus","Mitochondria","Ribosome","Golgi Apparatus","B","Mitochondria produce ATP through cellular respiration, earning the nickname 'powerhouse of the cell'.","Easy","Biology","Cell Biology","Organelles"
+"What is the SI unit of electric current?","Volt","Ohm","Ampere","Watt","C","Ampere (A) is the SI unit of electric current as defined by the International System of Units.","Easy","Physics","Electricity","Current & Resistance"
+"Solve: If 2x + 5 = 13, then x = ?","3","4","5","6","B","2x = 13 - 5 = 8, so x = 8/2 = 4.","Medium","Mathematics","Algebra","Linear Equations"
+"The process by which plants make their own food using sunlight is called:","Respiration","Transpiration","Photosynthesis","Fermentation","C","Photosynthesis is the process where plants convert light energy, CO2, and water into glucose and oxygen.","Easy","Biology","Plant Biology","Photosynthesis"

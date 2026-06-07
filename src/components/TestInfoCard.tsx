@@ -14,16 +14,24 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
   const { currentTest, subjects } = useTestContext();
   const [topicNames, setTopicNames] = useState<string[]>([]);
   const [subTopicNames, setSubTopicNames] = useState<string[]>([]);
+  const topicsJson = JSON.stringify(currentTest?.topics || []);
+  const subTopicsJson = JSON.stringify(currentTest?.sub_topics || []);
 
   useEffect(() => {
     if (!currentTest?.subject) return;
 
     const loadLabels = async () => {
       try {
-        const topics = await apiService.getTopics(currentTest.subject);
+        const subjectId =
+          subjects.find((s) => s.id === currentTest.subject)?.id ||
+          subjects.find(
+            (s) => s.name.toLowerCase() === (currentTest.subject || '').toLowerCase()
+          )?.id ||
+          currentTest.subject;
+        const topics = await apiService.getTopics(subjectId);
         setTopicNames(
           (currentTest.topics || [])
-            .map((id) => topics.find((t) => t.id === id)?.name)
+            .map((tid) => topics.find((t) => t.id === tid)?.name)
             .filter((name): name is string => Boolean(name)),
         );
 
@@ -31,7 +39,7 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
           const subTopics = await apiService.getSubTopicsMulti(currentTest.topics);
           setSubTopicNames(
             (currentTest.sub_topics || [])
-              .map((id) => subTopics.find((st) => st.id === id)?.name)
+              .map((stid) => subTopics.find((st) => st.id === stid)?.name)
               .filter((name): name is string => Boolean(name)),
           );
         } else {
@@ -44,51 +52,61 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
     };
 
     loadLabels();
-  }, [currentTest]);
+  }, [currentTest?.id, currentTest?.subject, topicsJson, subTopicsJson]);
 
   if (!currentTest) return null;
 
   const handleEditClick = () => {
-    if (onEdit) {
-      onEdit();
-    } else {
-      navigate(`/edit-test/${currentTest.id}`);
-    }
+    if (onEdit) onEdit();
+    else navigate(`/edit-test/${currentTest.id}`);
   };
 
   const subjectName =
     subjects.find((s) => s.id === currentTest.subject)?.name || currentTest.subject || 'Unknown';
 
+  const difficultyLabels: Record<string, string> = {
+    easy: 'Easy',
+    medium: 'Medium',
+    hard: 'Difficult',
+  };
   const difficulty = currentTest.difficulty
-    ? currentTest.difficulty.charAt(0).toUpperCase() + currentTest.difficulty.slice(1)
+    ? difficultyLabels[currentTest.difficulty.toLowerCase()] ||
+      currentTest.difficulty.charAt(0).toUpperCase() + currentTest.difficulty.slice(1)
     : 'Medium';
 
+  const testTypeLabels: Record<string, string> = {
+    chapterwise: 'Chapter Wise',
+    pyq: 'PYQ',
+    mock: 'Mock Test',
+  };
   const testType = currentTest.type
-    ? currentTest.type
-        .split(' ')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ')
+    ? testTypeLabels[currentTest.type.toLowerCase()] || currentTest.type
     : 'Chapter Wise';
 
+  const difficultyKey = (currentTest.difficulty || 'medium').toLowerCase();
   const difficultyClass =
-    difficulty.toLowerCase() === 'easy'
-      ? 'bg-badge-easy-bg text-badge-easy text-xs font-semibold px-[12px] py-1 rounded-full'
-      : difficulty.toLowerCase() === 'medium'
-        ? 'bg-[#fef3c7] text-[#d97706] text-xs font-semibold px-[12px] py-1 rounded-full'
-        : 'bg-danger-bg text-danger text-xs font-semibold px-[12px] py-1 rounded-full';
+    difficultyKey === 'easy'
+      ? 'bg-badge-easy-bg text-badge-easy'
+      : difficultyKey === 'medium'
+        ? 'bg-[#fef3c7] text-[#d97706]'
+        : 'bg-danger-bg text-danger';
 
   return (
-    <div className="bg-bg-card border border-border rounded-lg p-xl px-2xl relative max-sm:p-lg">
-      <div className="flex items-start justify-between mb-lg">
-        <div className="flex flex-wrap items-center gap-md">
-          <span className="bg-badge-chapter text-white text-xs font-semibold px-[12px] py-1 rounded-full">{testType}</span>
-          <span className="text-base font-semibold text-text-heading">{currentTest.name}</span>
-          <span className={difficultyClass}>✔ {difficulty}</span>
+    <div className="bg-bg-card border border-border rounded-lg p-xl px-2xl relative shadow-card max-sm:p-lg">
+      <div className="flex items-start justify-between gap-lg mb-lg">
+        <div className="flex flex-wrap items-center gap-md min-w-0">
+          <span className="bg-badge-chapter text-white text-xs font-semibold px-[12px] py-1 rounded-full shrink-0">
+            {testType}
+          </span>
+          <span className="text-base font-semibold text-text-heading truncate">{currentTest.name}</span>
+          <span className={`inline-flex items-center gap-xs text-xs font-semibold px-[12px] py-1 rounded-full shrink-0 ${difficultyClass}`}>
+            {difficulty}
+          </span>
         </div>
         {showEdit && (
           <button
             type="button"
-            className="flex items-center justify-center w-8 h-8 rounded-sm text-primary bg-primary-light transition-colors duration-150 hover:bg-primary/20"
+            className="flex items-center justify-center w-9 h-9 rounded-md text-primary bg-primary-light transition-colors duration-150 hover:bg-primary/20 shrink-0"
             onClick={handleEditClick}
             aria-label="Edit test details"
           >
@@ -99,13 +117,11 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
 
       <div className="flex flex-col gap-md mb-xl">
         <div className="flex items-center flex-wrap gap-sm text-sm">
-          <span className="font-medium text-text-main min-w-[70px]">Subject</span>
-          <span className="text-text-subtle">:</span>
-          <span className="font-medium">{subjectName}</span>
+          <span className="font-medium text-text-subtle min-w-[80px]">Subject</span>
+          <span className="font-medium text-text-heading">{subjectName}</span>
         </div>
-        <div className="flex items-center flex-wrap gap-sm text-sm">
-          <span className="font-medium text-text-main min-w-[70px]">Topic</span>
-          <span className="text-text-subtle">:</span>
+        <div className="flex items-start flex-wrap gap-sm text-sm">
+          <span className="font-medium text-text-subtle min-w-[80px] pt-0.5">Topic</span>
           <div className="flex flex-wrap gap-sm">
             {topicNames.length > 0 ? (
               topicNames.map((name) => (
@@ -114,14 +130,13 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
                 </span>
               ))
             ) : (
-              <span className="font-medium">—</span>
+              <span className="text-text-subtle">—</span>
             )}
           </div>
         </div>
         {subTopicNames.length > 0 && (
-          <div className="flex items-center flex-wrap gap-sm text-sm">
-            <span className="font-medium text-text-main min-w-[70px]">Sub Topic</span>
-            <span className="text-text-subtle">:</span>
+          <div className="flex items-start flex-wrap gap-sm text-sm">
+            <span className="font-medium text-text-subtle min-w-[80px] pt-0.5">Sub Topic</span>
             <div className="flex flex-wrap gap-sm">
               {subTopicNames.map((name) => (
                 <span key={name} className="bg-badge-topic-bg border border-badge-topic-border text-badge-topic-text text-xs font-medium px-[10px] py-0.5 rounded-full">
@@ -134,16 +149,21 @@ export default function TestInfoCard({ onEdit, showEdit = true }: TestInfoCardPr
       </div>
 
       <div className="flex items-center justify-end gap-sm max-sm:justify-start max-sm:flex-wrap">
-        <span className="inline-flex items-center gap-xs border border-border-input px-[14px] py-[6px] rounded-md text-xs text-text-main bg-bg-card font-medium">
-          <IconTimer /> {currentTest.total_time} Min
-        </span>
-        <span className="inline-flex items-center gap-xs border border-border-input px-[14px] py-[6px] rounded-md text-xs text-text-main bg-bg-card font-medium">
-          <IconQuestions /> {currentTest.total_questions} Q&apos;s
-        </span>
-        <span className="inline-flex items-center gap-xs border border-border-input px-[14px] py-[6px] rounded-md text-xs text-text-main bg-bg-card font-medium">
-          <IconMarks />{' '}
-          {currentTest.total_marks || currentTest.total_questions * currentTest.correct_marks} Marks
-        </span>
+        {[
+          { icon: <IconTimer />, label: `${currentTest.total_time} Min` },
+          { icon: <IconQuestions />, label: `${currentTest.total_questions} Q's` },
+          {
+            icon: <IconMarks />,
+            label: `${currentTest.total_marks || currentTest.total_questions * currentTest.correct_marks} Marks`,
+          },
+        ].map(({ icon, label }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-xs border border-border-input px-[14px] py-[6px] rounded-md text-xs text-text-main bg-bg-page font-medium"
+          >
+            {icon} {label}
+          </span>
+        ))}
       </div>
     </div>
   );

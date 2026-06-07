@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTestContext } from '../../context/TestContext';
-import { IconBell, IconChevronDown } from '../icons/Icons';
+import { Logo, IconBell, IconChevronDown } from '../icons/Icons';
 
 export default function TopNav() {
   const { user, logout } = useTestContext();
@@ -28,36 +28,41 @@ export default function TopNav() {
   const role = user?.role || 'Admin';
 
   return (
-    <header className="flex items-center justify-end h-topnav px-2xl bg-bg-card border-b border-border shrink-0 max-sm:px-lg">
-      <div className="flex-1" />
+    <header className="flex items-center w-full justify-between h-[72px] px-2xl bg-bg-card border-b border-border shrink-0 max-sm:px-lg">
+      <div className={"h-full pl-5 pr-11 flex justify-center items-center border-r-1 border-border"}>
+
+      <Logo className="h-7 w-auto shrink-0" />
+      </div>
+
       <div className="flex items-center gap-lg">
         <button
-          className="relative flex items-center justify-center w-11 h-11 rounded-full border border-border text-text-main bg-bg-card"
+          className="relative flex items-center justify-center w-10 h-10 rounded-full border border-border text-text-main bg-bg-card hover:bg-bg-tab-active transition-colors duration-150"
           type="button"
           aria-label="Notifications"
+          title="Notifications (coming soon)"
         >
           <IconBell />
-          <span className="absolute top-[10px] right-[12px] w-2 h-2 bg-success rounded-full border-2 border-white" />
+          <span className="absolute top-2 right-2.5 w-2 h-2 bg-success rounded-full border-2 border-white" />
         </button>
-        
+
         <div className="relative" ref={wrapperRef}>
           <button
-            className="flex items-center gap-md p-sm px-md rounded-lg bg-transparent text-text-main hover:bg-bg-tab-active transition duration-150"
+            className="flex items-center gap-md p-sm px-md rounded-lg hover:bg-bg-tab-active transition duration-150"
             type="button"
             onClick={() => setDropdownOpen((open) => !open)}
             aria-expanded={dropdownOpen}
             aria-label="User profile menu"
           >
             <img
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=5988ef&color=fff&size=96`}
+              src={"/usericon.png"}
               alt={name}
-              className="w-12 h-12 rounded-full object-cover"
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20"
             />
             <div className="flex flex-col items-start text-left max-sm:hidden">
-              <span className="text-base font-semibold leading-normal text-text-heading">{name}</span>
-              <span className="text-sm text-text-subtle leading-normal">{role}</span>
+              <span className="text-sm font-semibold text-text-heading leading-tight">{name}</span>
+              <span className="text-xs text-text-subtle">{role}</span>
             </div>
-            <IconChevronDown />
+            <IconChevronDown className="text-text-subtle max-sm:hidden" />
           </button>
 
           {dropdownOpen && (
